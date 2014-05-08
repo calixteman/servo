@@ -58,7 +58,7 @@ use std::cast;
 use std::comm::{channel, Sender, Receiver};
 use std::mem;
 use std::ptr;
-use std::task;
+use std::task::TaskBuilder;
 use style::{AuthorOrigin, ComputedValues, Stylesheet, Stylist};
 use style;
 use sync::{Arc, Mutex};
@@ -96,7 +96,7 @@ pub struct LayoutTask {
     /// A cached display list.
     pub display_list: Option<Arc<DisplayList>>,
 
-    pub stylist: ~Stylist,
+    pub stylist: Box<Stylist>,
 
     /// The initial set of CSS values.
     pub initial_css_values: Arc<ComputedValues>,
@@ -268,7 +268,7 @@ impl ImageResponder for LayoutImageResponder {
         let script_chan = self.script_chan.clone();
         let f: proc(ImageResponseMsg):Send = proc(_) {
             let ScriptChan(chan) = script_chan;
-            drop(chan.try_send(SendEventMsg(id.clone(), ReflowEvent)))
+            drop(chan.send_opt(SendEventMsg(id.clone(), ReflowEvent)))
         };
         f
     }
@@ -287,7 +287,7 @@ impl LayoutTask {
                   opts: Opts,
                   profiler_chan: ProfilerChan,
                   shutdown_chan: Sender<()>) {
-        let mut builder = task::task().named("LayoutTask");
+        let mut builder = TaskBuilder::new().named("LayoutTask");
         let ConstellationChan(con_chan) = constellation_chan.clone();
         send_on_failure(&mut builder, FailureMsg(failure_msg), con_chan);
         builder.spawn(proc() {
@@ -318,10 +318,10 @@ impl LayoutTask {
            opts: &Opts,
            profiler_chan: ProfilerChan)
            -> LayoutTask {
-        let local_image_cache = ~LocalImageCache(image_cache_task.clone());
+        let local_image_cache = box LocalImageCache(image_cache_task.clone());
         let local_image_cache = unsafe {
-            let cache = Arc::new(Mutex::new(cast::transmute::<~LocalImageCache,
-                                                              *()>(local_image_cache)));
+            let cache = Arc::new(Mutex::new(
+                cast::transmute::<Box<LocalImageCache>, *()>(local_image_cache)));
             LocalImageCacheHandle::new(cast::transmute::<Arc<Mutex<*()>>,Arc<*()>>(cache))
         };
         let screen_size = Size2D(Au(0), Au(0));
@@ -343,7 +343,7 @@ impl LayoutTask {
             screen_size: screen_size,
 
             display_list: None,
-            stylist: ~new_stylist(),
+            stylist: box new_stylist(),
             initial_css_values: Arc::new(style::initial_values()),
             parallel_traversal: parallel_traversal,
             profiler_chan: profiler_chan,
@@ -461,7 +461,7 @@ impl LayoutTask {
     }
 
     /// Retrieves the flow tree root from the root node.
-    fn get_layout_root(&self, node: LayoutNode) -> ~Flow:Share {
+    fn get_layout_root(&self, node: LayoutNode) -> Box<Flow:Share> {
         let mut layout_data_ref = node.mutate_layout_data();
         let result = match &mut *layout_data_ref {
             &Some(ref mut layout_data) => {
@@ -527,7 +527,7 @@ impl LayoutTask {
     /// benchmarked against those two. It is marked `#[inline(never)]` to aid profiling.
     #[inline(never)]
     fn solve_constraints_parallel(&mut self,
-                                  layout_root: &mut ~Flow:Share,
+                                  layout_root: &mut Box<Flow:Share>,
                                   layout_context: &mut LayoutContext) {
         if layout_context.opts.bubble_widths_separately {
             let mut traversal = BubbleWidthsTraversal {
@@ -553,13 +553,13 @@ impl LayoutTask {
     /// This is only on in debug builds.
     #[inline(never)]
     #[cfg(debug)]
-    fn verify_flow_tree(&mut self, layout_root: &mut ~Flow:Share) {
+    fn verify_flow_tree(&mut self, layout_root: &mut Box<Flow:Share>) {
         let mut traversal = FlowTreeVerificationTraversal;
         layout_root.traverse_preorder(&mut traversal);
     }
 
     #[cfg(not(debug))]
-    fn verify_flow_tree(&mut self, _: &mut ~Flow:Share) {
+    fn verify_flow_tree(&mut self, _: &mut Box<Flow:Share>) {
     }
 
     /// The high-level routine that performs layout tasks.
@@ -603,7 +603,7 @@ impl LayoutTask {
         // FIXME(pcwalton): This is a pretty bogus thing to do. Essentially this is a workaround
         // for libgreen having slow TLS.
         let mut font_context_opt = if self.parallel_traversal.is_none() {
-            Some(~FontContext::new(layout_ctx.font_context_info.clone()))
+            Some(box FontContext::new(layout_ctx.font_context_info.clone()))
         } else {
             None
         };
@@ -906,15 +906,15 @@ impl LayoutTask {
     // to the script task, and ultimately cause the image to be
     // re-requested. We probably don't need to go all the way back to
     // the script task for this.
-    fn make_on_image_available_cb(&self) -> ~ImageResponder:Send {
+    fn make_on_image_available_cb(&self) -> Box<ImageResponder:Send> {
         // This has a crazy signature because the image cache needs to
         // make multiple copies of the callback, and the dom event
         // channel is not a copyable type, so this is actually a
         // little factory to produce callbacks
-        ~LayoutImageResponder {
+        box LayoutImageResponder {
             id: self.id.clone(),
             script_chan: self.script_chan.clone(),
-        } as ~ImageResponder:Send
+        } as Box<ImageResponder:Send>
     }
 
     /// Handles a message to destroy layout data. Layout data must be destroyed on *this* task

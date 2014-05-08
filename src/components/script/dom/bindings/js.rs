@@ -48,7 +48,6 @@ use script_task::StackRoots;
 use std::cast;
 use std::cell::RefCell;
 use std::kinds::marker::ContravariantLifetime;
-use std::local_data;
 
 /// A type that represents a JS-owned value that is rooted for the lifetime of this value.
 /// Importantly, it requires explicit rooting in order to interact with the inner value.
@@ -93,12 +92,10 @@ impl<T: Reflectable> Temporary<T> {
 
     /// Create a stack-bounded root for this value.
     pub fn root<'a, 'b>(self) -> Root<'a, 'b, T> {
-        local_data::get(StackRoots, |opt| {
-            let collection = opt.unwrap();
-            unsafe {
-                (**collection).new_root(&self.inner)
-            }
-        })
+        let collection = StackRoots.get().unwrap();
+        unsafe {
+            (**collection).new_root(&self.inner)
+        }
     }
 
     unsafe fn inner(&self) -> JS<T> {
@@ -152,12 +149,10 @@ impl<T: Reflectable> JS<T> {
 
     /// Root this JS-owned value to prevent its collection as garbage.
     pub fn root<'a, 'b>(&self) -> Root<'a, 'b, T> {
-        local_data::get(StackRoots, |opt| {
-            let collection = opt.unwrap();
-            unsafe {
-                (**collection).new_root(self)
-            }
-        })
+        let collection = StackRoots.get().unwrap();
+        unsafe {
+            (**collection).new_root(self)
+        }
     }
 }
 

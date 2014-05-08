@@ -92,7 +92,7 @@ impl WindowMethods<Application> for Window {
                 debug!("GLUT display func registgered");
             }
         }
-        glut::display_func(~DisplayCallbackState);
+        glut::display_func(box DisplayCallbackState);
         struct ReshapeCallbackState;
         impl glut::ReshapeCallback for ReshapeCallbackState {
             fn call(&self, width: c_int, height: c_int) {
@@ -100,7 +100,7 @@ impl WindowMethods<Application> for Window {
                 tmp.event_queue.borrow_mut().push(ResizeWindowEvent(width as uint, height as uint))
             }
         }
-        glut::reshape_func(glut_window, ~ReshapeCallbackState);
+        glut::reshape_func(glut_window, box ReshapeCallbackState);
         struct KeyboardCallbackState;
         impl glut::KeyboardCallback for KeyboardCallbackState {
             fn call(&self, key: c_uchar, _x: c_int, _y: c_int) {
@@ -108,7 +108,7 @@ impl WindowMethods<Application> for Window {
                 tmp.handle_key(key)
             }
         }
-        glut::keyboard_func(~KeyboardCallbackState);
+        glut::keyboard_func(box KeyboardCallbackState);
         struct MouseCallbackState;
         impl glut::MouseCallback for MouseCallbackState {
             fn call(&self, button: c_int, state: c_int, x: c_int, y: c_int) {
@@ -130,7 +130,7 @@ impl WindowMethods<Application> for Window {
                 }
             }
         }
-        glut::mouse_func(~MouseCallbackState);
+        glut::mouse_func(box MouseCallbackState);
 
         let wrapped_window = Rc::new(window);
 

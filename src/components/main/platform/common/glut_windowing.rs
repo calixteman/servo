@@ -13,7 +13,6 @@ use windowing::{Forward, Back};
 use alert::{Alert, AlertMethods};
 use libc::{c_int, c_uchar};
 use std::cell::{Cell, RefCell};
-use std::local_data;
 use std::rc::Rc;
 use geom::point::Point2D;
 use geom::size::Size2D;
@@ -275,16 +274,16 @@ impl Window {
     }
 }
 
-static TLS_KEY: local_data::Key<Rc<Window>> = &local_data::Key;
+local_data_key!(TLS_KEY: Rc<Window>)
 
 fn install_local_window(window: Rc<Window>) {
-    local_data::set(TLS_KEY, window);
+    TLS_KEY.replace(Some(window));
 }
 
 fn drop_local_window() {
-    local_data::pop(TLS_KEY);
+    TLS_KEY.replace(None);
 }
 
 fn local_window() -> Rc<Window> {
-    local_data::get(TLS_KEY, |v| v.unwrap().clone())
+    TLS_KEY.get().unwrap().clone()
 }

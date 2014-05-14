@@ -28,9 +28,6 @@ use style::{ComputedValues, Stylist};
 use sync::Arc;
 use url::Url;
 
-#[cfg(target_os="android")]
-use std::local_data;
-
 #[cfg(not(target_os="android"))]
 #[thread_local]
 static mut FONT_CONTEXT: *mut FontContext = 0 as *mut FontContext;
@@ -172,7 +169,7 @@ impl LayoutContext {
 impl LayoutContext {
     pub fn font_context<'a>(&'a mut self) -> &'a mut FontContext {
         unsafe {
-            let opt = local_data::pop(font_context);
+            let opt = font_context.replace(None);
             let mut context;
             match opt {
                 Some(c) => context = cast::transmute(c),
@@ -180,14 +177,14 @@ impl LayoutContext {
                     context = cast::transmute(box FontContext::new(self.font_context_info.clone()))
                 }
             }
-            local_data::set(font_context, context);
+            font_context.replace(Some(context));
             cast::transmute(context)
         }
     }
 
     pub fn applicable_declarations_cache<'a>(&'a self) -> &'a mut ApplicableDeclarationsCache {
         unsafe {
-            let opt = local_data::pop(applicable_declarations_cache);
+            let opt = applicable_declarations_cache.replace(None);
             let mut cache;
             match opt {
                 Some(c) => cache = cast::transmute(c),
@@ -195,14 +192,14 @@ impl LayoutContext {
                     cache = cast::transmute(box ApplicableDeclarationsCache::new());
                 }
             }
-            local_data::set(applicable_declarations_cache, cache);
+            applicable_declarations_cache.replace(Some(cache));
             cast::transmute(cache)
         }
     }
 
     pub fn style_sharing_candidate_cache<'a>(&'a self) -> &'a mut StyleSharingCandidateCache {
         unsafe {
-            let opt = local_data::pop(style_sharing_candidate_cache);
+            let opt = style_sharing_candidate_cache.replace(None);
             let mut cache;
             match opt {
                 Some(c) => cache = cast::transmute(c),
@@ -210,7 +207,7 @@ impl LayoutContext {
                     cache = cast::transmute(box StyleSharingCandidateCache::new());
                 }
             }
-            local_data::set(style_sharing_candidate_cache, cache);
+            style_sharing_candidate_cache.replace(Some(cache));
             cast::transmute(cache)
         }
     }

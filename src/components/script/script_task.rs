@@ -986,21 +986,7 @@ impl ScriptTask {
                     let LayoutChan(ref chan) = *page.layout_chan;
                     chan.send(AddStylesheetMsg(sheet));
                 }
-                Ok(HtmlDiscoveredIFrame((iframe_url, subpage_id, sandboxed))) => {
-                    let SubpageId(num) = subpage_id;
-                    page.next_subpage_id.deref().set(SubpageId(num + 1));
-                    let sandboxed = if sandboxed {
-                        IFrameSandboxed
-                    } else {
-                        IFrameUnsandboxed
-                    };
-                    let ConstellationChan(ref chan) = self.constellation_chan;
-                    chan.send(LoadIframeUrlMsg(iframe_url,
-                                               pipeline_id,
-                                               subpage_id,
-                                               sandboxed));
-                }
-                None => break
+                Err(()) => break
             }
         }
 

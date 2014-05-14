@@ -11,7 +11,6 @@ use std::cmp::{Ord, Eq};
 use std::num::{NumCast, Zero};
 use std::mem;
 use std::u16;
-use std::iter;
 use std::vec::Vec;
 use geom::point::Point2D;
 
@@ -593,7 +592,7 @@ impl<'a> GlyphStore {
             true  => GlyphEntry::missing(glyph_count),
             false => {
                 let glyphs_vec = Vec::from_fn(glyph_count as uint, |i| {
-                    DetailedGlyph::new(data_for_glyphs[i].index,
+                    DetailedGlyph::new(data_for_glyphs[i].id,
                                        data_for_glyphs[i].advance,
                                        data_for_glyphs[i].offset)
                 });
